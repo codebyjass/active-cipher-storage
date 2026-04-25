@@ -48,6 +48,7 @@ Gem::Specification.new do |spec|
   # Dev/test
   spec.add_development_dependency "rspec",            "~> 3.12"
   spec.add_development_dependency "rspec-mocks",      "~> 3.12"
+  spec.add_development_dependency "rubocop",          "~> 1.0"
   spec.add_development_dependency "simplecov",        "~> 0.22"
   spec.add_development_dependency "faker",            "~> 3.0"
   spec.add_development_dependency "rake",             "~> 13.0"
