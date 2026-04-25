@@ -11,7 +11,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
-- Rewrite the README for clearer onboarding and easier discovery from search engines.
+- Update the README with clearer usage guidance and improved readability.
 
 ## [1.0.2] - 2026-04-25
 
