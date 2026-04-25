@@ -1,0 +1,64 @@
+name: Publish Gem
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish_to_rubygems:
+        description: "Publish to RubyGems.org"
+        required: true
+        default: true
+        type: boolean
+      publish_to_github_packages:
+        description: "Publish to GitHub Packages"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and publish gem
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Run tests
+        run: bundle exec rake
+
+      - name: Build gem
+        run: gem build active_cipher_storage.gemspec
+
+      - name: Publish to RubyGems
+        if: github.event_name == 'release' || inputs.publish_to_rubygems
+        env:
+          GEM_HOST_API_KEY: "${{ secrets.RUBYGEMS_AUTH_TOKEN }}"
+        run: |
+          mkdir -p "$HOME/.gem"
+          touch "$HOME/.gem/credentials"
+          chmod 0600 "$HOME/.gem/credentials"
+          printf -- "---\n:rubygems_api_key: %s\n" "$GEM_HOST_API_KEY" > "$HOME/.gem/credentials"
+          gem push active_cipher_storage-*.gem
+
+      - name: Publish to GitHub Packages
+        if: inputs.publish_to_github_packages
+        env:
+          GEM_HOST_API_KEY: "Bearer ${{ secrets.GITHUB_TOKEN }}"
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          mkdir -p "$HOME/.gem"
+          touch "$HOME/.gem/credentials"
+          chmod 0600 "$HOME/.gem/credentials"
+          printf -- "---\n:github: %s\n" "$GEM_HOST_API_KEY" > "$HOME/.gem/credentials"
+          gem push --KEY github --host "https://rubygems.pkg.github.com/${OWNER}" active_cipher_storage-*.gem
