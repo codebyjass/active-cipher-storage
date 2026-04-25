@@ -12,6 +12,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Changed
 
 - Publish updated RubyGems metadata for Rails Active Storage encryption, Ruby encryption/decryption, S3 streaming, multipart uploads, AES-256-GCM, and AWS KMS discoverability.
+- Rewrite the README for clearer onboarding and easier discovery from search engines.
 
 ## [1.0.1] - 2026-04-25
 
