@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
 
   spec.homepage              = "https://github.com/codebyjass/active-cipher-storage"
   spec.license               = "MIT"
-  spec.required_ruby_version = ">= 3.0"
+  spec.required_ruby_version = ">= 3.2"
 
   spec.metadata["bug_tracker_uri"]   = "#{spec.homepage}/issues"
   spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
@@ -41,7 +41,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "concurrent-ruby", "~> 1.2"
 
   # Optional integrations — loaded only when the relevant adapter is used
-  spec.add_development_dependency "activestorage",    ">= 6.1", "< 9.0"
+  spec.add_development_dependency "activestorage",    ">= 7.0", "< 9.0"
   spec.add_development_dependency "aws-sdk-kms",      "~> 1.0"
   spec.add_development_dependency "aws-sdk-s3",       "~> 1.0"
 

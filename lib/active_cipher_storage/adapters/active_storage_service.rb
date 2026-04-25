@@ -17,6 +17,8 @@ module ActiveCipherStorage
     # GCM authentication requires the complete ciphertext before any plaintext
     # can be safely released.
     class ActiveStorageService
+      BlobRef = Struct.new(:key)
+
       attr_reader :inner
 
       def self.build(configurator:, wrapped_service:, **kwargs)
@@ -69,7 +71,7 @@ module ActiveCipherStorage
       # decrypting or re-encrypting the file body.
       def rekey(key, old_provider:, new_provider:)
         KeyRotation.rotate_blob(
-          OpenStruct.new(key: key),
+          BlobRef.new(key),
           old_provider: old_provider,
           new_provider: new_provider,
           service:      self

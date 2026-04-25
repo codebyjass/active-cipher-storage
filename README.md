@@ -1,5 +1,7 @@
 # ActiveCipherStorage
 
+[![CI](https://github.com/codebyjass/active-cipher-storage/actions/workflows/ruby.yml/badge.svg)](https://github.com/codebyjass/active-cipher-storage/actions/workflows/ruby.yml)
+
 Transparent AES-256-GCM encryption for Rails Active Storage, direct AWS S3 usage, and backend-managed chunk uploads, with a pluggable KMS provider layer.
 
 ActiveCipherStorage supports three upload paths:
@@ -636,7 +638,7 @@ The gem is available as open source under the terms of the MIT License. See `LIC
 
 | | Version |
 |--|---------|
-| Ruby | >= 3.0 |
-| Rails / Active Storage | >= 6.1 |
+| Ruby | >= 3.2 |
+| Rails / Active Storage | >= 7.0 |
 | aws-sdk-kms | ~> 1.0 (optional) |
 | aws-sdk-s3 | ~> 1.0 (optional) |

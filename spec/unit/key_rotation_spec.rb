@@ -1,6 +1,8 @@
 require "spec_helper"
 
 RSpec.describe ActiveCipherStorage::KeyRotation do
+  BlobRef = Struct.new(:key)
+
   before { configure_env_provider }
 
   let(:var_a) { "ROTATION_KEY_A_#{SecureRandom.hex(4).upcase}" }
@@ -104,7 +106,7 @@ RSpec.describe ActiveCipherStorage::KeyRotation do
   end
 
   describe ".rotate_blob" do
-    let(:blob) { OpenStruct.new(key: "blob/abc") }
+    let(:blob) { BlobRef.new("blob/abc") }
 
     it "returns status :rotated and leaves blob decryptable under new provider" do
       result = described_class.rotate_blob(blob,
@@ -150,7 +152,7 @@ RSpec.describe ActiveCipherStorage::KeyRotation do
 
   describe ".rotate" do
     it "yields results for each blob found by BlobMetadata" do
-      blob = OpenStruct.new(key: "blob/abc")
+      blob = BlobRef.new("blob/abc")
       allow(ActiveCipherStorage::BlobMetadata).to receive(:blobs_for)
         .with(provider_a).and_yield(blob)
 
