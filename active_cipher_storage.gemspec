@@ -6,12 +6,12 @@ Gem::Specification.new do |spec|
   spec.authors = ["Jaspreet Singh"]
   spec.email   = ["codebyjass@users.noreply.github.com"]
 
-  spec.summary     = "Transparent file encryption for Active Storage and S3 with pluggable KMS providers"
+  spec.summary     = "Rails Active Storage encryption for Ruby apps"
   spec.description = <<~DESC
-    active_cipher_storage provides AES-256-GCM envelope encryption for files stored
-    via Rails Active Storage or directly via the AWS S3 SDK. Key management is
-    delegated to pluggable KMS providers: environment-variable keys, AWS KMS,
-    or any custom provider implementing the base interface.
+    active_cipher_storage encrypts and decrypts Rails Active Storage files with
+    AES-256-GCM envelope encryption. It supports AWS S3, streaming downloads,
+    multipart uploads, AWS KMS, environment-variable keys, and custom key
+    providers for Ruby and Rails applications.
   DESC
 
   spec.homepage              = "https://github.com/codebyjass/active-cipher-storage"

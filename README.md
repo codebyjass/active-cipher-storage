@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/codebyjass/active-cipher-storage/actions/workflows/ruby.yml/badge.svg)](https://github.com/codebyjass/active-cipher-storage/actions/workflows/ruby.yml)
 
-Transparent AES-256-GCM encryption for Rails Active Storage, direct AWS S3 usage, and backend-managed chunk uploads, with a pluggable KMS provider layer.
+ActiveCipherStorage is a Ruby gem for Rails Active Storage encryption and decryption. It encrypts files before they are stored, decrypts them when they are read, and supports AWS S3, streaming downloads, multipart uploads, AES-256-GCM envelope encryption, AWS KMS, and custom key providers.
 
 ActiveCipherStorage supports three upload paths:
 
