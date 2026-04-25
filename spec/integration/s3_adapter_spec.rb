@@ -97,10 +97,10 @@ RSpec.describe ActiveCipherStorage::Adapters::S3Adapter do
 
   describe "multipart upload (large file)" do
     before do
-      ActiveCipherStorage.configure { |c| c.chunk_size = 128 }
+      ActiveCipherStorage.configure { |c| c.chunk_size = 5 * 1024 * 1024 }
     end
 
-    let(:big_plaintext) { SecureRandom.random_bytes(600) }  # > multipart_threshold
+    let(:big_plaintext) { SecureRandom.random_bytes((5 * 1024 * 1024) + 600) }  # > multipart_threshold
 
     it "uses multiple parts for large files" do
       io = StringIO.new(big_plaintext)
@@ -128,6 +128,16 @@ RSpec.describe ActiveCipherStorage::Adapters::S3Adapter do
 
       expect { adapter.put_encrypted("large/file.bin", io) }
         .to raise_error(original_error)
+    end
+
+    it "rejects chunk sizes below S3 multipart minimum part size" do
+      ActiveCipherStorage.configure { |c| c.chunk_size = 1024 * 1024 }
+
+      io = StringIO.new(big_plaintext)
+      allow(io).to receive(:size).and_return(big_plaintext.bytesize)
+
+      expect { adapter.put_encrypted("large/file.bin", io) }
+        .to raise_error(ArgumentError, /at least 5 MiB/)
     end
   end
 

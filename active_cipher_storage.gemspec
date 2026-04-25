@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Core — no runtime dep on Rails or AWS
+  spec.add_dependency "activesupport",  ">= 7.0", "< 9.0"
   spec.add_dependency "concurrent-ruby", "~> 1.2"
 
   # Optional integrations — loaded only when the relevant adapter is used

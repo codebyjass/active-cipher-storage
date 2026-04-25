@@ -31,6 +31,26 @@ module ActiveCipherStorage
       )
     end
 
+    def self.write_plaintext(storage_key)
+      return unless active_storage_available?
+
+      blob = ActiveStorage::Blob.find_by(key: storage_key)
+      return unless blob
+
+      blob.update_columns(
+        metadata: blob.metadata.merge(
+          "encrypted" => false,
+          "cipher_version" => nil,
+          "provider_id" => nil,
+          "kms_key_id" => nil
+        ).compact
+      )
+    rescue => e
+      ActiveCipherStorage.configuration.logger.warn(
+        "[ActiveCipherStorage] Could not write plaintext blob metadata for #{storage_key}: #{e.message}"
+      )
+    end
+
     def self.update_after_rotation(storage_key, new_provider)
       return unless active_storage_available?
 

@@ -10,8 +10,6 @@ ActiveCipherStorage supports three upload paths:
 - **Direct S3 clients** — service objects and non-Rails apps can call `put_encrypted`, `get_decrypted`, and `stream_decrypted`.
 - **Frontend chunk uploads** — the frontend sends plaintext chunks to your backend; the backend encrypts those chunks and uploads encrypted S3 multipart parts.
 
----
-
 ## Contents
 
 1. [How it works](#how-it-works)
@@ -35,8 +33,6 @@ ActiveCipherStorage supports three upload paths:
 16. [Security reports](#security-reports)
 17. [License](#license)
 18. [Ruby and Rails compatibility](#ruby-and-rails-compatibility)
-
----
 
 ## How it works
 
@@ -72,8 +68,6 @@ Decryption reverses the flow: the KMS provider unwraps the DEK from the header, 
 
 Every encrypted payload uses the same self-describing format, whether it came from Active Storage, the direct S3 adapter, or the backend chunk upload API.
 
----
-
 ## Installation
 
 ```ruby
@@ -90,8 +84,6 @@ gem "aws-sdk-s3"
 ```
 bundle install
 ```
-
----
 
 ## Rails / Active Storage setup
 
@@ -113,6 +105,7 @@ ActiveCipherStorage.configure do |config|
 
   # Tuning (optional)
   config.chunk_size = 5 * 1024 * 1024   # 5 MiB per chunk (default)
+  config.encrypt_uploads = true         # set false to store new Active Storage uploads as plaintext
 end
 ```
 
@@ -163,9 +156,9 @@ url = rails_blob_url(user.document)
 
 Active Storage transparently encrypts on upload and decrypts on download. Existing plaintext objects are still readable: if a blob does not start with the `ACS\x01` magic header, the service returns it unchanged.
 
-Direct Active Storage browser uploads are intentionally disabled because they bypass the backend encryption layer.
+`config.encrypt_uploads` controls new Active Storage writes only. When disabled, new uploads are stored as plaintext and marked with `"encrypted": false` metadata. Reads continue to auto-detect by payload header, so existing encrypted blobs still decrypt correctly and existing plaintext blobs still download unchanged.
 
----
+Direct Active Storage browser uploads are intentionally disabled because they bypass the backend encryption layer.
 
 ## Standalone S3 usage
 
@@ -201,8 +194,6 @@ s3 = ActiveCipherStorage::Adapters::S3Adapter.new(
   multipart_threshold: 50 * 1024 * 1024   # 50 MiB
 )
 ```
-
----
 
 ## Chunked multipart upload
 
@@ -280,8 +271,6 @@ uploader = ActiveCipherStorage::EncryptedMultipartUpload.new(
 
 **Security:** The plaintext DEK is never stored in the session. Only the KMS-wrapped encrypted DEK is persisted; it is decrypted fresh for each chunk and zeroed immediately after use.
 
----
-
 ## Streaming download
 
 `stream_decrypted` pipes S3 bytes through the decryptor and yields plaintext chunks on the fly. Memory usage is bounded by one ACS chunk (default 5 MiB) regardless of file size.
@@ -317,8 +306,6 @@ end
 
 Use `stream_decrypted` for chunked ACS objects. If the object is non-chunked, call `get_decrypted`; streaming a non-chunked or non-ACS/plaintext object raises `InvalidFormat` with a clear error.
 
----
-
 ## Manual encrypt / decrypt
 
 Use `Cipher` (in-memory) or `StreamCipher` (chunked, constant memory):
@@ -353,8 +340,6 @@ File.open("large.bin.enc", "rb") do |input|
   end
 end
 ```
-
----
 
 ## Blob metadata
 
@@ -403,8 +388,6 @@ end
 ```
 
 Only the encrypted DEK in the file header is rewritten — the IV, ciphertext, and auth tags are copied byte-for-byte. This makes rotation O(header size) in data transferred per file, not O(file size). For AWS KMS → AWS KMS rotations, the plaintext DEK never leaves KMS (uses `ReEncrypt` API).
-
----
 
 ## KMS providers
 
@@ -477,8 +460,6 @@ The `provider_id` is embedded in every encrypted file. Routing at decrypt time i
 
 Implement `rotate_data_key(encrypted_key)` as well if the provider can re-wrap encrypted DEKs without exposing plaintext key material.
 
----
-
 ## Key rotation
 
 ### AWS KMS automatic rotation
@@ -516,8 +497,6 @@ new_provider = ActiveCipherStorage::Providers::EnvProvider.new(env_var: "NEW_KEY
 new_dek = new_provider.rotate_data_key(encrypted_dek, old_provider: old_provider)
 ```
 
----
-
 ## Configuration reference
 
 ```ruby
@@ -532,12 +511,14 @@ ActiveCipherStorage.configure do |config|
   # Must be >= 5 MiB for S3 multipart uploads (except the last part).
   config.chunk_size = 5 * 1024 * 1024
 
+  # Controls new Active Storage uploads only. Downloads always auto-detect
+  # encrypted vs. plaintext payloads by the ACS header.
+  config.encrypt_uploads = true
+
   # Logger instance.  Defaults to STDOUT at WARN level.
   config.logger     = Rails.logger
 end
 ```
-
----
 
 ## Encryption format
 
@@ -575,8 +556,6 @@ CHUNKED PAYLOAD (repeated until final frame)
 - Auth tag failure raises `DecryptionError` immediately — no partial plaintext is returned.
 - Unsupported format versions, algorithms, and header flags raise `InvalidFormat` instead of being parsed permissively.
 
----
-
 ## Security notes
 
 | Risk | Mitigation |
@@ -586,8 +565,6 @@ CHUNKED PAYLOAD (repeated until final frame)
 | Direct uploads | `url_for_direct_upload` raises `UnsupportedOperation` — it is not possible to encrypt client-side with this gem. Use server-side uploads only. |
 | Partial-read oracle | `DecryptionError` is always raised from `cipher.final`; no partial plaintext is ever returned. |
 | Accidental plaintext upload | All upload paths go through the cipher layer; there is no bypass. |
-
----
 
 ## Testing
 
@@ -604,8 +581,6 @@ bundle exec rake spec:integration
 
 Integration tests use in-memory fakes for both Active Storage and S3 — no real AWS credentials or S3 bucket required.
 
----
-
 ## Contributing
 
 Contributions are welcome. Please read `CONTRIBUTING.md` before opening a pull request.
@@ -618,21 +593,15 @@ bundle exec rspec
 
 Do not commit secrets, credentials, `.env` files, local coverage output, or generated gems.
 
----
-
 ## Security reports
 
 Please do not open public GitHub issues for vulnerabilities. Follow `SECURITY.md` and use GitHub private vulnerability reporting if it is available for the repository:
 
 https://github.com/codebyjass/active-cipher-storage/security/advisories/new
 
----
-
 ## License
 
 The gem is available as open source under the terms of the MIT License. See `LICENSE`.
-
----
 
 ## Ruby and Rails compatibility
 

@@ -150,6 +150,28 @@ RSpec.describe "Multipart upload + streaming download round-trip" do
         adapter.stream_decrypted(key) { |_| }
       }.to raise_error(ActiveCipherStorage::Errors::DecryptionError)
     end
+
+    it "rejects reordered authenticated frames" do
+      plaintext = SecureRandom.random_bytes(3 * chunk_size + 37)
+      upload_in_parts(plaintext, part_size: chunk_size)
+
+      raw = s3.instance_variable_get(:@objects)[key]
+      header, frames = split_chunked_payload(raw)
+      s3.instance_variable_get(:@objects)[key] = header + frames[1] + frames[0] + frames[2..].join
+
+      expect {
+        adapter.stream_decrypted(key) { |_| }
+      }.to raise_error(ActiveCipherStorage::Errors::InvalidFormat, /Unexpected chunk sequence/)
+    end
+
+    it "rejects trailing bytes after the final frame" do
+      upload_in_parts("hello world".b, part_size: chunk_size)
+      s3.instance_variable_get(:@objects)[key] << "trailing"
+
+      expect {
+        adapter.stream_decrypted(key) { |_| }
+      }.to raise_error(ActiveCipherStorage::Errors::InvalidFormat, /Trailing bytes/)
+    end
   end
 
   describe "invalid streaming inputs" do
@@ -169,5 +191,21 @@ RSpec.describe "Multipart upload + streaming download round-trip" do
         adapter.stream_decrypted(key) { |_| }
       }.to raise_error(ActiveCipherStorage::Errors::InvalidFormat, /Invalid magic bytes/)
     end
+  end
+
+  def split_chunked_payload(raw)
+    io = StringIO.new(raw)
+    ActiveCipherStorage::Format.read_header(io)
+    header = raw.byteslice(0, io.pos)
+    frames = []
+
+    until io.eof?
+      frame_start = io.pos
+      frame = ActiveCipherStorage::Format.read_chunk(io)
+      frames << raw.byteslice(frame_start, io.pos - frame_start)
+      break if frame[:seq] == ActiveCipherStorage::Format::FINAL_SEQ
+    end
+
+    [header, frames]
   end
 end

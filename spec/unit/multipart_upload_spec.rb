@@ -26,6 +26,13 @@ RSpec.describe ActiveCipherStorage::EncryptedMultipartUpload do
   let(:chunk_size) { ActiveCipherStorage.configuration.chunk_size }
 
   describe "#initiate" do
+    it "rejects chunk sizes below S3 multipart minimum part size" do
+      ActiveCipherStorage.configure { |c| c.chunk_size = 1024 * 1024 }
+
+      expect { described_class.new(s3_client: s3, bucket: bucket) }
+        .to raise_error(ArgumentError, /at least 5 MiB/)
+    end
+
     it "returns an opaque session_id string" do
       session_id = uploader.initiate(key: "uploads/doc.pdf")
       expect(session_id).to be_a(String)

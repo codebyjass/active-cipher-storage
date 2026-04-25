@@ -65,7 +65,7 @@ module ActiveCipherStorage
       end
 
       def multipart_put(key, io, **options)
-        require "aws-sdk-s3"
+        validate_multipart_chunk_size!
         upload_id = s3.create_multipart_upload(bucket: @bucket, key: key,
                                                **upload_options(options)).upload_id
         parts = stream_multipart_parts(key, io, upload_id)
@@ -147,6 +147,14 @@ module ActiveCipherStorage
         c
       end
 
+      def validate_multipart_chunk_size!
+        min_size = Configuration::MINIMUM_S3_MULTIPART_PART_SIZE
+        return if @config.chunk_size >= min_size
+
+        raise ArgumentError,
+              "chunk_size must be at least 5 MiB for S3 multipart uploads"
+      end
+
       def s3
         @s3 ||= begin
           require "aws-sdk-s3"
@@ -180,10 +188,16 @@ module ActiveCipherStorage
           @dek         = nil
           @header_done = false
           @done        = false
+          @expected_seq = 1
         end
 
         def push(bytes, &block)
-          return if @done
+          if @done
+            raise Errors::InvalidFormat, "Trailing bytes after final frame" unless bytes.empty?
+
+            return
+          end
+
           @buffer += bytes.b
           try_parse_header unless @header_done
           drain_frames(&block) if @header_done
@@ -191,6 +205,7 @@ module ActiveCipherStorage
 
         def finish!
           raise Errors::InvalidFormat, "Stream ended before final frame" unless @done
+          raise Errors::InvalidFormat, "Trailing bytes after final frame" unless @buffer.empty?
         ensure
           zero_bytes!(@dek)
         end
@@ -227,10 +242,19 @@ module ActiveCipherStorage
             frame   = Format.read_chunk(StringIO.new(@buffer.byteslice(0, frame_size)))
             @buffer = (@buffer.byteslice(frame_size..) || "".b).b
 
+            validate_frame_sequence!(frame[:seq])
             plaintext = decrypt_frame(frame)
             block.call(plaintext) unless plaintext.empty?
             @done = (frame[:seq] == Format::FINAL_SEQ)
+            @expected_seq += 1 unless @done
           end
+        end
+
+        def validate_frame_sequence!(seq)
+          return if [Format::FINAL_SEQ, @expected_seq].include?(seq)
+
+          raise Errors::InvalidFormat,
+                "Unexpected chunk sequence: expected #{@expected_seq}, got #{seq}"
         end
 
         def decrypt_frame(frame)
