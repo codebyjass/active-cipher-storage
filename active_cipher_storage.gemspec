@@ -4,7 +4,7 @@ Gem::Specification.new do |spec|
   spec.name    = "active_cipher_storage"
   spec.version = ActiveCipherStorage::VERSION
   spec.authors = ["Jaspreet Singh"]
-  spec.email   = []
+  spec.email   = ["codebyjass@users.noreply.github.com"]
 
   spec.summary     = "Transparent file encryption for Active Storage and S3 with pluggable KMS providers"
   spec.description = <<~DESC
@@ -14,19 +14,24 @@ Gem::Specification.new do |spec|
     or any custom provider implementing the base interface.
   DESC
 
-  spec.homepage              = "https://github.com/example/active_cipher_storage"
+  spec.homepage              = "https://github.com/codebyjass/active-cipher-storage"
   spec.license               = "MIT"
   spec.required_ruby_version = ">= 3.0"
 
-  spec.metadata["homepage_uri"]    = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["bug_tracker_uri"]   = "#{spec.homepage}/issues"
+  spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["documentation_uri"] = spec.homepage
+  spec.metadata["homepage_uri"]      = spec.homepage
+  spec.metadata["rubygems_mfa_required"] = "true"
+  spec.metadata["source_code_uri"]   = spec.homepage
 
   spec.files = Dir[
     "lib/**/*.rb",
-    "README.md",
-    "LICENSE",
     "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
     "active_cipher_storage.gemspec"
   ]
 
@@ -36,7 +41,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "concurrent-ruby", "~> 1.2"
 
   # Optional integrations — loaded only when the relevant adapter is used
-  spec.add_development_dependency "activestorage",    ">= 6.1"
+  spec.add_development_dependency "activestorage",    ">= 6.1", "< 9.0"
   spec.add_development_dependency "aws-sdk-kms",      "~> 1.0"
   spec.add_development_dependency "aws-sdk-s3",       "~> 1.0"
 

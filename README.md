@@ -29,7 +29,10 @@ ActiveCipherStorage supports three upload paths:
 12. [Encryption format](#encryption-format)
 13. [Security notes](#security-notes)
 14. [Testing](#testing)
-15. [Ruby and Rails compatibility](#ruby-and-rails-compatibility)
+15. [Contributing](#contributing)
+16. [Security reports](#security-reports)
+17. [License](#license)
+18. [Ruby and Rails compatibility](#ruby-and-rails-compatibility)
 
 ---
 
@@ -598,6 +601,34 @@ bundle exec rake spec:integration
 ```
 
 Integration tests use in-memory fakes for both Active Storage and S3 — no real AWS credentials or S3 bucket required.
+
+---
+
+## Contributing
+
+Contributions are welcome. Please read `CONTRIBUTING.md` before opening a pull request.
+
+For changes that affect encryption, streaming, providers, key rotation, or storage behavior, include focused specs that prove both the success path and the failure/tamper path. Run the full suite before submitting:
+
+```bash
+bundle exec rspec
+```
+
+Do not commit secrets, credentials, `.env` files, local coverage output, or generated gems.
+
+---
+
+## Security reports
+
+Please do not open public GitHub issues for vulnerabilities. Follow `SECURITY.md` and use GitHub private vulnerability reporting if it is available for the repository:
+
+https://github.com/codebyjass/active-cipher-storage/security/advisories/new
+
+---
+
+## License
+
+The gem is available as open source under the terms of the MIT License. See `LICENSE`.
 
 ---
 
