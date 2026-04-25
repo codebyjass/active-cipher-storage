@@ -33,6 +33,17 @@ module ActiveCipherStorage
 
       def upload(key, io, checksum: nil, content_type: nil, filename: nil,
                  disposition: nil, custom_metadata: {})
+        unless ActiveCipherStorage.configuration.encrypt_uploads
+          @inner.upload(key, io,
+            checksum:        checksum,
+            content_type:    content_type,
+            filename:        filename,
+            disposition:     disposition,
+            custom_metadata: custom_metadata)
+          BlobMetadata.write_plaintext(key)
+          return
+        end
+
         @inner.upload(key, encrypt_io(io),
           checksum:        nil,  # checksum is over plaintext; skip for ciphertext
           content_type:    "application/octet-stream",

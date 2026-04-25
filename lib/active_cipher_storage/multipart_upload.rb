@@ -31,6 +31,7 @@ module ActiveCipherStorage
       @config = config || ActiveCipherStorage.configuration
       @store  = store || MemorySessionStore.new
       @config.validate!
+      validate_multipart_chunk_size!
     end
 
     # Starts a new multipart upload. Returns an opaque session_id.
@@ -164,6 +165,14 @@ module ActiveCipherStorage
 
     def save_session(id, data)
       @store.write(id, data, expires_in: SESSION_TTL)
+    end
+
+    def validate_multipart_chunk_size!
+      min_size = Configuration::MINIMUM_S3_MULTIPART_PART_SIZE
+      return if @config.chunk_size >= min_size
+
+      raise ArgumentError,
+            "chunk_size must be at least 5 MiB for S3 multipart uploads"
     end
 
     # Thread-safe in-memory session store backed by Concurrent::Map.

@@ -47,13 +47,19 @@ module ActiveCipherStorage
       raise Errors::InvalidFormat, "Payload is not chunked; use Cipher#decrypt" unless header.chunked
 
       key = @provider.decrypt_data_key(header.encrypted_dek)
+      expected_seq = 1
       loop do
         frame = Format.read_chunk(input_io)
         raise Errors::InvalidFormat, "Unexpected end of stream — missing final frame" if frame.nil?
 
+        validate_frame_sequence!(frame[:seq], expected_seq)
         output_io.write(decrypt_chunk(frame[:ciphertext], key, frame[:iv], frame[:auth_tag], frame[:seq]))
         break if frame[:seq] == Format::FINAL_SEQ
+
+        expected_seq += 1
       end
+
+      ensure_no_trailing_bytes!(input_io)
     ensure
       zero_bytes!(key)
     end
@@ -87,6 +93,20 @@ module ActiveCipherStorage
     rescue OpenSSL::Cipher::CipherError
       raise Errors::DecryptionError,
             "Authentication failed on chunk seq=#{seq} — data may be tampered"
+    end
+
+    def validate_frame_sequence!(seq, expected_seq)
+      return if seq == Format::FINAL_SEQ || seq == expected_seq
+
+      raise Errors::InvalidFormat,
+            "Unexpected chunk sequence: expected #{expected_seq}, got #{seq}"
+    end
+
+    def ensure_no_trailing_bytes!(input_io)
+      trailing = input_io.read(1)
+      return if trailing.nil? || trailing.empty?
+
+      raise Errors::InvalidFormat, "Trailing bytes after final frame"
     end
 
     def build_cipher(mode, key, iv, auth_tag, seq)

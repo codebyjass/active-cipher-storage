@@ -66,6 +66,22 @@ RSpec.describe ActiveCipherStorage::Adapters::ActiveStorageService do
       svc.upload(key, StringIO.new(binary))
       expect(svc.download(key)).to eq(binary)
     end
+
+    it "stores plaintext for new uploads when encryption is disabled" do
+      ActiveCipherStorage.configure { |c| c.encrypt_uploads = false }
+
+      svc.upload(key, StringIO.new(plaintext))
+
+      expect(inner.download(key)).to eq(plaintext)
+      expect(svc.download(key)).to eq(plaintext)
+    end
+
+    it "still decrypts existing encrypted blobs when encryption is disabled" do
+      svc.upload(key, StringIO.new(plaintext))
+      ActiveCipherStorage.configure { |c| c.encrypt_uploads = false }
+
+      expect(svc.download(key)).to eq(plaintext)
+    end
   end
 
   describe "#download with block" do

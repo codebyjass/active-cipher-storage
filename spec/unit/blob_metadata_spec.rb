@@ -10,7 +10,9 @@ RSpec.describe ActiveCipherStorage::BlobMetadata do
       metadata:         blob_metadata,
       update_columns:   nil
     ).tap do |b|
-      allow(b).to receive(:update_columns) { |h| blob_metadata.merge!(h[:metadata] || h) }
+      allow(b).to receive(:update_columns) do |h|
+        blob_metadata.replace(h[:metadata] || h)
+      end
     end
   end
 
@@ -59,6 +61,26 @@ RSpec.describe ActiveCipherStorage::BlobMetadata do
 
       expect { described_class.write("key/abc", provider) }.not_to raise_error
       expect(logger).to have_received(:warn).with(/DB unavailable/)
+    end
+  end
+
+  describe ".write_plaintext" do
+    it "sets encrypted: false on the blob metadata" do
+      described_class.write_plaintext("key/abc")
+      expect(blob_metadata["encrypted"]).to be false
+    end
+
+    it "removes stale encryption metadata" do
+      blob_metadata.merge!(
+        "encrypted" => true,
+        "cipher_version" => ActiveCipherStorage::Format::VERSION,
+        "provider_id" => "env",
+        "kms_key_id" => "ACTIVE_CIPHER_MASTER_KEY"
+      )
+
+      described_class.write_plaintext("key/abc")
+
+      expect(blob_metadata).to eq("encrypted" => false)
     end
   end
 

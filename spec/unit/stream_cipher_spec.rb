@@ -55,6 +55,22 @@ RSpec.describe ActiveCipherStorage::StreamCipher do
       expect { cipher.decrypt_to_io(StringIO.new(raw)) }
         .to raise_error(ActiveCipherStorage::Errors::DecryptionError)
     end
+
+    it "rejects reordered chunk frames" do
+      raw = cipher.encrypt_to_io(StringIO.new("x" * (chunk_size * 3 + 10))).read
+      header, frames = split_chunked_payload(raw)
+      reordered = header + frames[1] + frames[0] + frames[2..].join
+
+      expect { cipher.decrypt_to_io(StringIO.new(reordered)) }
+        .to raise_error(ActiveCipherStorage::Errors::InvalidFormat, /Unexpected chunk sequence/)
+    end
+
+    it "rejects trailing bytes after the final frame" do
+      raw = cipher.encrypt_to_io(StringIO.new("hello world")).read
+
+      expect { cipher.decrypt_to_io(StringIO.new(raw + "trailing")) }
+        .to raise_error(ActiveCipherStorage::Errors::InvalidFormat, /Trailing bytes/)
+    end
   end
 
   describe "large file scenario" do
@@ -74,5 +90,21 @@ RSpec.describe ActiveCipherStorage::StreamCipher do
       dec = cipher.decrypt_to_io(enc)
       expect(dec.read).to eq(plaintext)
     end
+  end
+
+  def split_chunked_payload(raw)
+    io = StringIO.new(raw)
+    ActiveCipherStorage::Format.read_header(io)
+    header = raw.byteslice(0, io.pos)
+    frames = []
+
+    until io.eof?
+      frame_start = io.pos
+      frame = ActiveCipherStorage::Format.read_chunk(io)
+      frames << raw.byteslice(frame_start, io.pos - frame_start)
+      break if frame[:seq] == ActiveCipherStorage::Format::FINAL_SEQ
+    end
+
+    [header, frames]
   end
 end
