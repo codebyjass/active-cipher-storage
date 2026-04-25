@@ -4,3 +4,4 @@ pkg/
 *.gem
 .worktrees
 .worktrees/
+examples/rails_minio/
