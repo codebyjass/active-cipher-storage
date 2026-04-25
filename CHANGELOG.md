@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-04-25
+
+### Changed
+
+- Update the README with clearer usage guidance and improved readability.
+
 ## [1.0.2] - 2026-04-25
 
 ### Changed
@@ -39,7 +45,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Header-only key rotation for re-wrapping encrypted DEKs.
 - Unit and integration coverage for crypto, providers, Active Storage, S3, multipart upload, streaming, metadata, and key rotation.
 
-[Unreleased]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/codebyjass/active-cipher-storage/releases/tag/v1.0.0

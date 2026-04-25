@@ -1,83 +1,88 @@
-# ActiveCipherStorage
+# Active Cipher Storage
 
 [![CI](https://github.com/codebyjass/active-cipher-storage/actions/workflows/ruby.yml/badge.svg)](https://github.com/codebyjass/active-cipher-storage/actions/workflows/ruby.yml)
 
-ActiveCipherStorage is a Ruby gem for Rails Active Storage encryption and decryption. It encrypts files before they are stored, decrypts them when they are read, and supports AWS S3, streaming downloads, multipart uploads, AES-256-GCM envelope encryption, AWS KMS, and custom key providers.
+Active Cipher Storage is published as the `active_cipher_storage` Ruby gem.
 
-ActiveCipherStorage supports three upload paths:
+It adds Rails Active Storage encryption and decryption without changing the way your Rails app attaches files. Files are encrypted before they are stored in AWS S3 or another storage service, and decrypted when your app reads them back.
 
-- **Rails Active Storage** — application code keeps using normal attachment APIs while the storage service encrypts on upload and decrypts on download.
-- **Direct S3 clients** — service objects and non-Rails apps can call `put_encrypted`, `get_decrypted`, and `stream_decrypted`.
-- **Frontend chunk uploads** — the frontend sends plaintext chunks to your backend; the backend encrypts those chunks and uploads encrypted S3 multipart parts.
+This solves a common Rails security problem: sensitive files should be protected before they leave your application.
+
+It works with normal Rails Active Storage attachments, direct S3 uploads from Ruby service objects, streaming downloads, and backend-managed multipart uploads for large files.
+
+## Features
+
+- Encrypt files before uploading them to S3 or Active Storage.
+- Decrypt files automatically when downloading.
+- Works with Rails Active Storage.
+- Supports direct AWS S3 client usage.
+- Handles large files with streaming AES-256-GCM encryption.
+- Supports backend-managed multipart uploads for frontend chunk upload flows.
+- Uses pluggable key providers: environment variables, AWS KMS, or custom KMS providers.
+- Supports header-only key rotation without rewriting the full file body.
+
+## Use Cases
+
+- Encrypt user documents before storing them in S3.
+- Secure financial records, contracts, medical files, invoices, and other sensitive uploads.
+- Add application-level encryption on top of AWS S3 server-side encryption.
+- Keep Rails Active Storage APIs while storing encrypted files.
+- Stream large encrypted files from S3 without loading the whole file into memory.
+- Meet compliance and privacy requirements around PII, GDPR, HIPAA-style data, or internal security policies.
 
 ## Contents
 
-1. [How it works](#how-it-works)
-2. [Installation](#installation)
-3. [Rails / Active Storage setup](#rails--active-storage-setup)
-4. [Standalone S3 usage](#standalone-s3-usage)
-5. [Chunked multipart upload](#chunked-multipart-upload)
-6. [Streaming download](#streaming-download)
-7. [Manual encrypt / decrypt](#manual-encrypt--decrypt)
-8. [Blob metadata](#blob-metadata)
-9. [KMS providers](#kms-providers)
+1. [Features](#features)
+2. [Use Cases](#use-cases)
+3. [How it works](#how-it-works)
+4. [Installation](#installation)
+5. [Rails / Active Storage setup](#rails--active-storage-setup)
+6. [Standalone S3 usage](#standalone-s3-usage)
+7. [Chunked multipart upload](#chunked-multipart-upload)
+8. [Streaming download](#streaming-download)
+9. [Manual encrypt / decrypt](#manual-encrypt--decrypt)
+10. [Blob metadata](#blob-metadata)
+11. [KMS providers](#kms-providers)
    - [Environment-variable provider](#environment-variable-provider)
    - [AWS KMS provider](#aws-kms-provider)
    - [Custom provider](#custom-provider)
-10. [Key rotation](#key-rotation)
-11. [Configuration reference](#configuration-reference)
-12. [Encryption format](#encryption-format)
-13. [Security notes](#security-notes)
-14. [Testing](#testing)
-15. [Contributing](#contributing)
-16. [Security reports](#security-reports)
-17. [License](#license)
-18. [Ruby and Rails compatibility](#ruby-and-rails-compatibility)
+12. [Key rotation](#key-rotation)
+13. [Configuration reference](#configuration-reference)
+14. [Encryption format](#encryption-format)
+15. [Security notes](#security-notes)
+16. [Testing](#testing)
+17. [Contributing](#contributing)
+18. [Security reports](#security-reports)
+19. [License](#license)
+20. [Ruby and Rails compatibility](#ruby-and-rails-compatibility)
 
 ## How it works
 
-Every encrypted file is self-contained.  No external metadata store is needed.
+Every file gets its own random data encryption key. The file is encrypted with AES-256-GCM, and that data key is wrapped by your configured key provider.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Plaintext file                                         │
-└────────────────────────┬────────────────────────────────┘
-                         │
-          ┌──────────────▼──────────────┐
-          │  1. Generate random DEK      │  (32 bytes, AES-256)
-          │     per-file, per-operation  │
-          └──────────────┬──────────────┘
-                         │
-          ┌──────────────▼──────────────┐
-          │  2. Encrypt file with DEK    │  AES-256-GCM
-          │     unique IV per operation  │  + auth tag
-          └──────────────┬──────────────┘
-                         │
-          ┌──────────────▼──────────────┐
-          │  3. Wrap DEK with KMS        │  ENV, AWS KMS,
-          │     master key               │  or custom
-          └──────────────┬──────────────┘
-                         │
-          ┌──────────────▼──────────────┐
-          │  4. Binary payload           │  Header + IV +
-          │     (stored in S3)           │  Ciphertext + Auth tag
-          └─────────────────────────────┘
-```
+The encrypted file is self-contained. It stores:
 
-Decryption reverses the flow: the KMS provider unwraps the DEK from the header, then AES-GCM verifies the auth tag and decrypts the ciphertext.
+- a small Active Cipher Storage header,
+- the encrypted data key,
+- the ciphertext,
+- authentication tags used to detect tampering.
 
-Every encrypted payload uses the same self-describing format, whether it came from Active Storage, the direct S3 adapter, or the backend chunk upload API.
+When the file is downloaded, the gem reads the header, asks the key provider to unwrap the data key, verifies the AES-GCM authentication tag, and returns plaintext to your app.
+
+The same format is used for Rails Active Storage uploads, direct S3 uploads, streaming downloads, and multipart upload flows.
 
 ## Installation
 
+Add the gem to your Gemfile:
+
 ```ruby
-# Gemfile
 gem "active_cipher_storage"
+```
 
-# For AWS KMS provider:
+If you use AWS KMS or the direct S3 adapter, add the AWS SDK gems you need:
+
+```ruby
 gem "aws-sdk-kms"
-
-# For standalone S3 adapter:
 gem "aws-sdk-s3"
 ```
 
@@ -87,7 +92,11 @@ bundle install
 
 ## Rails / Active Storage setup
 
-### 1. Configure a KMS provider
+Use this path when you want Rails Active Storage to encrypt attachments automatically.
+
+Your model, controller, and view code can keep using normal Active Storage APIs. The only change is the storage service configuration.
+
+### 1. Configure a key provider
 
 ```ruby
 # config/initializers/active_cipher_storage.rb
@@ -154,7 +163,9 @@ user.document.attach(io: file, filename: "report.pdf")
 url = rails_blob_url(user.document)
 ```
 
-Active Storage transparently encrypts on upload and decrypts on download. Existing plaintext objects are still readable: if a blob does not start with the `ACS\x01` magic header, the service returns it unchanged.
+Active Storage now encrypts on upload and decrypts on download.
+
+Existing plaintext objects are still readable. If a blob does not start with the `ACS\x01` magic header, the service returns it unchanged.
 
 `config.encrypt_uploads` controls new Active Storage writes only. When disabled, new uploads are stored as plaintext and marked with `"encrypted": false` metadata. Reads continue to auto-detect by payload header, so existing encrypted blobs still decrypt correctly and existing plaintext blobs still download unchanged.
 
@@ -162,7 +173,9 @@ Direct Active Storage browser uploads are intentionally disabled because they by
 
 ## Standalone S3 usage
 
-No Rails required.
+You can also use Active Cipher Storage without Rails.
+
+This is useful for background jobs, service objects, scripts, or non-Rails Ruby apps that upload encrypted files directly to S3.
 
 ```ruby
 require "active_cipher_storage"
@@ -176,12 +189,12 @@ s3 = ActiveCipherStorage::Adapters::S3Adapter.new(
   region: "us-east-1"
 )
 
-# Encrypt and upload
+# Encrypt before upload
 File.open("contract.pdf", "rb") do |f|
   s3.put_encrypted("legal/contract-2026.pdf", f)
 end
 
-# Download and decrypt — returns an IO
+# Download and decrypt
 io = s3.get_decrypted("legal/contract-2026.pdf")
 File.binwrite("decrypted_contract.pdf", io.read)
 ```
@@ -197,9 +210,11 @@ s3 = ActiveCipherStorage::Adapters::S3Adapter.new(
 
 ## Chunked multipart upload
 
-For large files where the frontend sends data in separate HTTP requests, use `EncryptedMultipartUpload`. Each frontend chunk is encrypted by the backend as an authenticated ACS frame and buffered until the S3 multipart minimum part size is met, then flushed as an encrypted S3 multipart part.
+For large files, many apps upload from the browser in chunks.
 
-This flow is backend-managed. The frontend never receives encryption keys and never uploads plaintext directly to S3.
+Active Cipher Storage supports that flow, but the browser still does not get encryption keys. The frontend sends plaintext chunks to your Rails app, and your backend encrypts those chunks before uploading encrypted multipart parts to S3.
+
+Use `EncryptedMultipartUpload` for this backend-managed upload flow.
 
 ```ruby
 uploader = ActiveCipherStorage::EncryptedMultipartUpload.new(
@@ -207,14 +222,14 @@ uploader = ActiveCipherStorage::EncryptedMultipartUpload.new(
   bucket:    "my-bucket"
 )
 
-# --- Request 1: start the upload ---
+# Request 1: start the upload
 session_id = uploader.initiate(key: "uploads/video.mp4")
 # Keep session_id for this active upload lifecycle.
 
-# --- Requests 2..N: send chunks (any size) ---
+# Requests 2..N: send chunks
 uploader.upload_part(session_id: session_id, chunk_io: request.body)
 
-# --- Final request: seal and complete ---
+# Final request: seal and complete
 result = uploader.complete(session_id: session_id)
 # => { status: :completed, key: "uploads/video.mp4", parts_count: 12 }
 ```
@@ -255,13 +270,14 @@ class UploadsController < ApplicationController
 end
 ```
 
-**Session storage:**
+**Session storage**
+
 By default, session state is held in process memory (`MemorySessionStore`). This is intended for one active backend-managed upload lifecycle and is not durable across process restarts or deploys.
 
 For multi-process deployments where chunks for the same active upload may land on different workers or hosts, pass a shared store:
 
 ```ruby
-# Rails.cache backed by Redis — allows cross-worker active upload sessions
+# Rails.cache backed by Redis allows cross-worker active upload sessions.
 uploader = ActiveCipherStorage::EncryptedMultipartUpload.new(
   s3_client: s3_client,
   bucket:    "my-bucket",
@@ -269,11 +285,13 @@ uploader = ActiveCipherStorage::EncryptedMultipartUpload.new(
 )
 ```
 
-**Security:** The plaintext DEK is never stored in the session. Only the KMS-wrapped encrypted DEK is persisted; it is decrypted fresh for each chunk and zeroed immediately after use.
+**Security:** The plaintext data key is never stored in the session. Only the KMS-wrapped encrypted data key is persisted; it is decrypted fresh for each chunk and zeroed immediately after use.
 
 ## Streaming download
 
-`stream_decrypted` pipes S3 bytes through the decryptor and yields plaintext chunks on the fly. Memory usage is bounded by one ACS chunk (default 5 MiB) regardless of file size.
+Use `stream_decrypted` when you need to send a large encrypted file to a client without loading the whole file into memory.
+
+The adapter reads encrypted bytes from S3, decrypts authenticated chunks as they arrive, and yields plaintext chunks to your block. Memory usage stays bounded by one Active Cipher Storage chunk, which is 5 MiB by default.
 
 ```ruby
 s3 = ActiveCipherStorage::Adapters::S3Adapter.new(
@@ -302,13 +320,15 @@ File.open("output.bin", "wb") do |f|
 end
 ```
 
-`stream_decrypted` handles S3 delivering data in any chunk size — the internal `StreamingDecryptor` buffers incoming bytes and emits plaintext only when a complete, authenticated ACS frame is available.
+`stream_decrypted` handles S3 delivering data in any chunk size. The internal decryptor buffers incoming bytes and emits plaintext only when a complete, authenticated frame is available.
 
 Use `stream_decrypted` for chunked ACS objects. If the object is non-chunked, call `get_decrypted`; streaming a non-chunked or non-ACS/plaintext object raises `InvalidFormat` with a clear error.
 
 ## Manual encrypt / decrypt
 
-Use `Cipher` (in-memory) or `StreamCipher` (chunked, constant memory):
+If you do not need Rails or S3 integration, you can use the lower-level cipher classes directly.
+
+Use `Cipher` for small files and `StreamCipher` for large files:
 
 ```ruby
 require "active_cipher_storage"
@@ -317,7 +337,7 @@ ActiveCipherStorage.configure do |c|
   c.provider = ActiveCipherStorage::Providers::EnvProvider.new
 end
 
-# ── In-memory (small files) ─────────────────────────────
+# Small files
 cipher    = ActiveCipherStorage::Cipher.new
 encrypted = cipher.encrypt(File.open("secret.txt", "rb"))
 # => Binary String with embedded header, IV, ciphertext, auth tag
@@ -325,7 +345,7 @@ encrypted = cipher.encrypt(File.open("secret.txt", "rb"))
 plaintext = cipher.decrypt(encrypted)
 # => Original plaintext String
 
-# ── Streaming (large files) ─────────────────────────────
+# Large files
 stream = ActiveCipherStorage::StreamCipher.new
 
 File.open("large.bin", "rb") do |input|
