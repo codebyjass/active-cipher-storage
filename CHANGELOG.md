@@ -7,6 +7,19 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-25
+
+### Changed
+
+- Back gem configuration with Rails-style ActiveSupport options while preserving the existing public configuration API.
+- Document the Active Storage upload encryption flag and plaintext read compatibility behavior.
+
+### Fixed
+
+- Reject reordered streaming frames and trailing bytes after the final encrypted frame.
+- Validate S3 multipart chunk sizes before upload so invalid part sizes fail early.
+- Mark plaintext Active Storage uploads explicitly when encryption is disabled.
+
 ## [1.0.0] - 2026-04-25
 
 ### Added
@@ -20,5 +33,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Header-only key rotation for re-wrapping encrypted DEKs.
 - Unit and integration coverage for crypto, providers, Active Storage, S3, multipart upload, streaming, metadata, and key rotation.
 
-[Unreleased]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/codebyjass/active-cipher-storage/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/codebyjass/active-cipher-storage/releases/tag/v1.0.0
